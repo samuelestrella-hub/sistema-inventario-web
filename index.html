@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Inventario PRO</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background: #f4f6f9;
+}
+nav {
+    background: #007bff;
+    padding: 10px;
+    display: flex;
+    gap: 10px;
+}
+nav button {
+    background: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+.section {
+    display: none;
+    padding: 20px;
+}
+.active {
+    display: block;
+}
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    max-width: 400px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+td, th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+.stock-bajo {
+    background: #ffcccc;
+}
+.stock-ok {
+    background: #ccffcc;
+}
+.alerta {
+    color: red;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<nav>
+<button onclick="mostrar('productos')">Productos</button>
+<button onclick="mostrar('ventas')">Ventas</button>
+<button onclick="mostrar('inventario')">Inventario</button>
+</nav>
+
+<div id="productos" class="section active">
+<h2>Agregar Producto</h2>
+<div class="card">
+<input id="nombre" placeholder="Nombre">
+<input id="cantidad" type="number" placeholder="Cantidad">
+<button onclick="agregar()">Agregar</button>
+</div>
+</div>
+
+<div id="ventas" class="section">
+<h2>Registrar Venta</h2>
+<div class="card">
+<input id="ventaNombre" placeholder="Producto">
+<input id="ventaCantidad" type="number" placeholder="Cantidad">
+<button onclick="vender()">Vender</button>
+</div>
+
+<h3>Historial de ventas</h3>
+<ul id="historial"></ul>
+</div>
+
+<div id="inventario" class="section">
+<h2>Inventario en Tiempo Real</h2>
+<div id="alerta" class="alerta"></div>
+<table id="tabla">
+<tr>
+<th>Producto</th>
+<th>Cantidad</th>
+<th>Estado</th>
+<th>Acción</th>
+</tr>
+</table>
+</div>
+
+<script>
+let inventario = JSON.parse(localStorage.getItem("inventario")) || {};
+let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+
+function mostrar(seccion) {
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    document.getElementById(seccion).classList.add("active");
+}
+
+function guardar() {
+    localStorage.setItem("inventario", JSON.stringify(inventario));
+}
+
+function agregar() {
+    let nombre = document.getElementById("nombre").value;
+    let cantidad = parseInt(document.getElementById("cantidad").value);
+
+    if (!nombre || cantidad <= 0) return;
+
+    inventario[nombre] = (inventario[nombre] || 0) + cantidad;
+
+    guardar();
+    actualizarVista();
+
+    document.getElementById("nombre").value = "";
+    document.getElementById("cantidad").value = "";
+}
+
+function vender() {
+    let nombre = document.getElementById("ventaNombre").value;
+    let cantidad = parseInt(document.getElementById("ventaCantidad").value);
+
+    if (!inventario[nombre]) {
+        alert("Producto no existe");
+        return;
+    }
+
+    if (inventario[nombre] < cantidad) {
+        alert("Stock insuficiente");
+        return;
+    }
+
+    inventario[nombre] -= cantidad;
+
+    ventas.push({
+        producto: nombre,
+        cantidad: cantidad,
+        fecha: new Date().toLocaleString()
+    });
+
+    localStorage.setItem("ventas", JSON.stringify(ventas));
+    guardar();
+
+    actualizarVista();
+    mostrarVentas();
+
+    document.getElementById("ventaNombre").value = "";
+    document.getElementById("ventaCantidad").value = "";
+}
+
+function eliminar(nombre) {
+    delete inventario[nombre];
+    guardar();
+    actualizarVista();
+}
+
+function actualizarVista() {
+    let tabla = document.getElementById("tabla");
+
+    tabla.innerHTML = `
+    <tr>
+        <th>Producto</th>
+        <th>Cantidad</th>
+        <th>Estado</th>
+        <th>Acción</th>
+    </tr>`;
+
+    let alertaTexto = "";
+
+    for (let producto in inventario) {
+        let cantidad = inventario[producto];
+        let estado = cantidad < 5 ? "Bajo" : "OK";
+        let clase = cantidad < 5 ? "stock-bajo" : "stock-ok";
+
+        if (cantidad < 5) {
+            alertaTexto += "Stock bajo en: " + producto + " | ";
+        }
+
+        tabla.innerHTML += `
+        <tr class="${clase}">
+            <td>${producto}</td>
+            <td>${cantidad}</td>
+            <td>${estado}</td>
+            <td><button onclick="eliminar('${producto}')">Eliminar</button></td>
+        </tr>`;
+    }
+
+    document.getElementById("alerta").innerText = alertaTexto;
+}
+
+function mostrarVentas() {
+    let lista = document.getElementById("historial");
+    lista.innerHTML = "";
+
+    ventas.forEach(v => {
+        let item = document.createElement("li");
+        item.textContent = `${v.producto} - ${v.cantidad} unidades (${v.fecha})`;
+        lista.appendChild(item);
+    });
+}
+
+actualizarVista();
+mostrarVentas();
+</script>
+
+</body>
+</html>
